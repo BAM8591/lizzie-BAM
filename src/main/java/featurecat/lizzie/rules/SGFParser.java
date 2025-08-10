@@ -5,6 +5,7 @@ import static java.util.Arrays.asList;
 import featurecat.lizzie.Lizzie;
 import featurecat.lizzie.analysis.GameInfo;
 import featurecat.lizzie.analysis.Leelaz;
+import featurecat.lizzie.service.OpenAIService;
 import featurecat.lizzie.util.EncodingDetector;
 import featurecat.lizzie.util.Utils;
 import java.io.File;
@@ -688,6 +689,18 @@ public class SGFParser {
           data.comment = formatComment(node);
         }
 
+        // Generate AI comment for key moves if enabled
+        if (Lizzie.config.enableAiCommentsForKeyMoves && shouldGenerateAiComment(node)) {
+          String aiComment = generateAiComment(node);
+          if (aiComment != null && !aiComment.isEmpty()) {
+            if (!data.comment.isEmpty()) {
+              data.comment += "\n\n[AI]: " + aiComment;
+            } else {
+              data.comment = "[AI]: " + aiComment;
+            }
+          }
+        }
+
         // Write the comment
         if (!data.comment.isEmpty()) {
           builder.append(String.format("C[%s]", Escaping(data.comment)));
@@ -1028,5 +1041,78 @@ public class SGFParser {
     char y = alphabet.charAt(c[1]);
 
     return String.format("%c%c", x, y);
+  }
+
+  /**
+   * Check if AI comment should be generated for this move based on score difference.
+   *
+   * @param node Current move node
+   * @return true if AI comment should be generated
+   */
+  private static boolean shouldGenerateAiComment(BoardHistoryNode node) {
+    if (Lizzie.config.openaiApiKey == null || Lizzie.config.openaiApiKey.trim().isEmpty()) {
+      return false;
+    }
+
+    BoardData data = node.getData();
+    Optional<BoardHistoryNode> previousNode = node.previous();
+
+    if (!previousNode.isPresent()) {
+      return false; // No previous move to compare
+    }
+
+    BoardData previousData = previousNode.get().getData();
+
+    // Both moves need to have scoreMean data
+    if (data.getPlayouts() == 0 || previousData.getPlayouts() == 0) {
+      return false;
+    }
+
+    double currentScore = data.getScoreMean();
+    double previousScore = previousData.getScoreMean();
+    double scoreDelta = Math.abs(currentScore - previousScore);
+
+    return scoreDelta >= Lizzie.config.aiCommentsScoreThreshold;
+  }
+
+  /**
+   * Generate AI comment for the move.
+   *
+   * @param node Current move node
+   * @return AI generated comment or null if failed
+   */
+  private static String generateAiComment(BoardHistoryNode node) {
+    try {
+      BoardData data = node.getData();
+      Optional<BoardHistoryNode> previousNode = node.previous();
+
+      if (!previousNode.isPresent()) {
+        return null;
+      }
+
+      BoardData previousData = previousNode.get().getData();
+      double currentScore = data.getScoreMean();
+      double previousScore = previousData.getScoreMean();
+      double scoreDelta = currentScore - previousScore;
+
+      // Create move description
+      String moveDescription;
+      if (data.lastMove.isPresent()) {
+        int[] coord = data.lastMove.get();
+        String coordStr = asCoord(coord);
+        String color = Stone.BLACK.equals(data.lastMoveColor) ? "черные" : "белые";
+        moveDescription = String.format("%s %s", color, coordStr);
+      } else {
+        String color = Stone.BLACK.equals(data.lastMoveColor) ? "черные" : "белые";
+        moveDescription = String.format("%s пасуют", color);
+      }
+
+      OpenAIService openAIService = new OpenAIService(Lizzie.config.openaiApiKey);
+      return openAIService.generateMoveComment(moveDescription, scoreDelta);
+
+    } catch (Exception e) {
+      System.err.println("Failed to generate AI comment: " + e.getMessage());
+      return null;
+    }
   }
 }

@@ -179,6 +179,11 @@ public class ConfigDialog extends JDialog {
   public JCheckBox chkShowBestMovesByHold;
   public JCheckBox chkColorByWinrateInsteadOfVisits;
   public JCheckBox chkNotRefreshVariation;
+
+  // AI Comments components
+  public JCheckBox chkEnableAiCommentsForKeyMoves;
+  public JTextField txtOpenaiApiKey;
+  public JTextField txtAiCommentsScoreThreshold;
   public JSlider sldBoardPositionProportion;
   public JTextField txtLimitBestMoveNum;
   public JTextField txtLimitBranchLength;
@@ -1195,6 +1200,28 @@ public class ConfigDialog extends JDialog {
     tpGtpConsoleStyle.setBounds(170, 446, 460, 80);
     uiTab.add(tpGtpConsoleStyle);
 
+    // AI Comments UI components
+    JLabel lblEnableAiCommentsForKeyMoves = new JLabel("Enable AI comments for key moves:");
+    lblEnableAiCommentsForKeyMoves.setBounds(6, 540, 200, 16);
+    uiTab.add(lblEnableAiCommentsForKeyMoves);
+    chkEnableAiCommentsForKeyMoves = new JCheckBox("");
+    chkEnableAiCommentsForKeyMoves.setBounds(210, 537, 57, 23);
+    uiTab.add(chkEnableAiCommentsForKeyMoves);
+
+    JLabel lblOpenaiApiKey = new JLabel("OpenAI API Key:");
+    lblOpenaiApiKey.setBounds(6, 567, 200, 16);
+    uiTab.add(lblOpenaiApiKey);
+    txtOpenaiApiKey = new JTextField();
+    txtOpenaiApiKey.setBounds(210, 564, 300, 23);
+    uiTab.add(txtOpenaiApiKey);
+
+    JLabel lblAiCommentsScoreThreshold = new JLabel("Score difference threshold:");
+    lblAiCommentsScoreThreshold.setBounds(6, 594, 200, 16);
+    uiTab.add(lblAiCommentsScoreThreshold);
+    txtAiCommentsScoreThreshold = new JTextField();
+    txtAiCommentsScoreThreshold.setBounds(210, 591, 100, 23);
+    uiTab.add(txtAiCommentsScoreThreshold);
+
     setBoardSize();
     setShowMoveNumber();
     chkPanelUI.setSelected(Lizzie.config.panelUI);
@@ -1220,6 +1247,12 @@ public class ConfigDialog extends JDialog {
     chkShowPlayoutsInSuggestion.setSelected(Lizzie.config.showPlayoutsInSuggestion);
     chkShowScoremeanInSuggestion.setSelected(Lizzie.config.showScoremeanInSuggestion);
     tpGtpConsoleStyle.setText(Lizzie.config.gtpConsoleStyle);
+
+    // AI Comments configuration loading
+    chkEnableAiCommentsForKeyMoves.setSelected(Lizzie.config.enableAiCommentsForKeyMoves);
+    txtOpenaiApiKey.setText(Lizzie.config.openaiApiKey);
+    txtAiCommentsScoreThreshold.setText(String.valueOf(Lizzie.config.aiCommentsScoreThreshold));
+
     chkShowWinrateInSuggestion.addChangeListener(
         new ChangeListener() {
           public void stateChanged(ChangeEvent e) {
@@ -2552,6 +2585,21 @@ public class ConfigDialog extends JDialog {
       Lizzie.config.uiConfig.put("limit-best-move-num", Lizzie.config.limitBestMoveNum);
       Lizzie.config.limitBranchLength = txtFieldIntValue(txtLimitBranchLength);
       Lizzie.config.uiConfig.put("limit-branch-length", Lizzie.config.limitBranchLength);
+
+      // AI Comments configuration saving
+      Lizzie.config.enableAiCommentsForKeyMoves = chkEnableAiCommentsForKeyMoves.isSelected();
+      Lizzie.config.uiConfig.putOpt(
+          "enable-ai-comments-for-key-moves", Lizzie.config.enableAiCommentsForKeyMoves);
+      Lizzie.config.openaiApiKey = txtOpenaiApiKey.getText();
+      Lizzie.config.uiConfig.putOpt("openai-api-key", Lizzie.config.openaiApiKey);
+      try {
+        Lizzie.config.aiCommentsScoreThreshold =
+            Double.parseDouble(txtAiCommentsScoreThreshold.getText());
+      } catch (NumberFormatException e) {
+        Lizzie.config.aiCommentsScoreThreshold = 1.0; // Default value
+      }
+      Lizzie.config.uiConfig.putOpt(
+          "ai-comments-score-threshold", Lizzie.config.aiCommentsScoreThreshold);
       suggestionMoveInfoChanged();
       Lizzie.config.uiConfig.putOpt(
           "show-winrate-in-suggestion", Lizzie.config.showWinrateInSuggestion);
