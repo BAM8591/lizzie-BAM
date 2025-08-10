@@ -74,6 +74,10 @@ public class Config {
   public String toolbarPosition = "South";
   public boolean showNameInBoard = true;
 
+  // AI comment settings
+  public boolean enableAiComments = false;
+  public double aiCommentScoreMeanThreshold = 1.0;
+
   public JSONObject config;
   public JSONObject leelazConfig;
   public JSONObject uiConfig;
@@ -252,6 +256,10 @@ public class Config {
     showNameInBoard = uiConfig.optBoolean("show-name-in-board", true);
     toolbarPosition =
         uiConfig.optString("toolbar-position", persistedUi.optString("toolbar-position", "South"));
+
+    // Load AI comment settings
+    enableAiComments = uiConfig.optBoolean("enable-ai-comments", false);
+    aiCommentScoreMeanThreshold = uiConfig.optDouble("ai-comment-scoremean-threshold", 1.0);
 
     if (theme.fontName() != null) fontName = theme.fontName();
 
@@ -556,6 +564,8 @@ public class Config {
     ui.put("show-katago-estimate-onmainboard", true);
     ui.put("katago-estimate-mode", "small");
     ui.put("katago-estimate-blend", true);
+    ui.put("enable-ai-comments", false);
+    ui.put("ai-comment-scoremean-threshold", 1.0);
     config.put("ui", ui);
     return config;
   }

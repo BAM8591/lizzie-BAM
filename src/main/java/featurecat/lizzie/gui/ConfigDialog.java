@@ -187,6 +187,10 @@ public class ConfigDialog extends JDialog {
   public JCheckBox chkShowScoremeanInSuggestion;
   public JTextPane tpGtpConsoleStyle;
 
+  // AI comment controls
+  public JCheckBox chkEnableAiComments;
+  public JFormattedTextField txtAiCommentScoreMeanThreshold;
+
   // Theme Tab
   public JComboBox<String> cmbThemes;
   public JSpinner spnWinrateStrokeWidth;
@@ -1195,6 +1199,32 @@ public class ConfigDialog extends JDialog {
     tpGtpConsoleStyle.setBounds(170, 446, 460, 80);
     uiTab.add(tpGtpConsoleStyle);
 
+    // AI comment controls
+    JLabel lblEnableAiComments =
+        new JLabel(resourceBundle.getString("LizzieConfig.title.enableAiComments"));
+    lblEnableAiComments.setBounds(6, 530, 200, 16);
+    uiTab.add(lblEnableAiComments);
+    chkEnableAiComments = new JCheckBox("");
+    chkEnableAiComments.setBounds(210, 527, 57, 23);
+    uiTab.add(chkEnableAiComments);
+
+    JLabel lblAiCommentScoreMeanThreshold =
+        new JLabel(resourceBundle.getString("LizzieConfig.title.aiCommentScoreMeanThreshold"));
+    lblAiCommentScoreMeanThreshold.setBounds(280, 530, 200, 16);
+    uiTab.add(lblAiCommentScoreMeanThreshold);
+    txtAiCommentScoreMeanThreshold =
+        new JFormattedTextField(
+            new InternationalFormatter() {
+              protected DocumentFilter getDocumentFilter() {
+                return filter;
+              }
+
+              private DocumentFilter filter = new DigitOnlyFilter("[^0-9\\.]++");
+            });
+    txtAiCommentScoreMeanThreshold.setColumns(10);
+    txtAiCommentScoreMeanThreshold.setBounds(485, 527, 60, 26);
+    uiTab.add(txtAiCommentScoreMeanThreshold);
+
     setBoardSize();
     setShowMoveNumber();
     chkPanelUI.setSelected(Lizzie.config.panelUI);
@@ -1220,6 +1250,12 @@ public class ConfigDialog extends JDialog {
     chkShowPlayoutsInSuggestion.setSelected(Lizzie.config.showPlayoutsInSuggestion);
     chkShowScoremeanInSuggestion.setSelected(Lizzie.config.showScoremeanInSuggestion);
     tpGtpConsoleStyle.setText(Lizzie.config.gtpConsoleStyle);
+
+    // Initialize AI comment controls
+    chkEnableAiComments.setSelected(Lizzie.config.enableAiComments);
+    txtAiCommentScoreMeanThreshold.setText(
+        String.valueOf(Lizzie.config.aiCommentScoreMeanThreshold));
+
     chkShowWinrateInSuggestion.addChangeListener(
         new ChangeListener() {
           public void stateChanged(ChangeEvent e) {
@@ -2560,6 +2596,15 @@ public class ConfigDialog extends JDialog {
       Lizzie.config.uiConfig.putOpt(
           "show-scoremean-in-suggestion", Lizzie.config.showScoremeanInSuggestion);
       Lizzie.config.uiConfig.put("gtp-console-style", tpGtpConsoleStyle.getText());
+
+      // Save AI comment settings
+      Lizzie.config.enableAiComments = chkEnableAiComments.isSelected();
+      Lizzie.config.aiCommentScoreMeanThreshold =
+          Utils.txtFieldDoubleValue(txtAiCommentScoreMeanThreshold);
+      Lizzie.config.uiConfig.putOpt("enable-ai-comments", Lizzie.config.enableAiComments);
+      Lizzie.config.uiConfig.put(
+          "ai-comment-scoremean-threshold", Lizzie.config.aiCommentScoreMeanThreshold);
+
       Lizzie.config.uiConfig.put("theme", cmbThemes.getSelectedItem());
       writeThemeValues();
 
