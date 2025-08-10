@@ -1072,7 +1072,17 @@ public class SGFParser {
     double previousScore = previousData.getScoreMean();
     double scoreDelta = Math.abs(currentScore - previousScore);
 
-    return scoreDelta >= Lizzie.config.aiCommentsScoreThreshold;
+    boolean shouldGenerate = scoreDelta >= Lizzie.config.aiCommentsScoreThreshold;
+
+    if (shouldGenerate) {
+      System.out.println(
+          "AI comment triggered: score delta "
+              + String.format("%.1f", scoreDelta)
+              + " >= threshold "
+              + String.format("%.1f", Lizzie.config.aiCommentsScoreThreshold));
+    }
+
+    return shouldGenerate;
   }
 
   /**
@@ -1108,10 +1118,26 @@ public class SGFParser {
       }
 
       OpenAIService openAIService = new OpenAIService(Lizzie.config.openaiApiKey);
-      return openAIService.generateMoveComment(moveDescription, scoreDelta);
+
+      System.out.println(
+          "Generating AI comment for move: "
+              + moveDescription
+              + ", score delta: "
+              + String.format("%.1f", scoreDelta));
+
+      String comment = openAIService.generateMoveComment(moveDescription, scoreDelta);
+
+      if (comment != null && !comment.isEmpty()) {
+        System.out.println("Generated AI comment: " + comment);
+      }
+
+      return comment;
 
     } catch (Exception e) {
       System.err.println("Failed to generate AI comment: " + e.getMessage());
+      if (e.getMessage() != null && e.getMessage().contains("API key")) {
+        System.err.println("Please check your OpenAI API key configuration");
+      }
       return null;
     }
   }
