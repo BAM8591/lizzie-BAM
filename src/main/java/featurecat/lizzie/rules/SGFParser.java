@@ -3,6 +3,7 @@ package featurecat.lizzie.rules;
 import static java.util.Arrays.asList;
 
 import featurecat.lizzie.Lizzie;
+import featurecat.lizzie.ai.OpenAiCommenter;
 import featurecat.lizzie.analysis.GameInfo;
 import featurecat.lizzie.analysis.Leelaz;
 import featurecat.lizzie.util.EncodingDetector;
@@ -686,6 +687,51 @@ public class SGFParser {
         if (Lizzie.config.appendWinrateToComment) {
           // Append the winrate to the comment of sgf
           data.comment = formatComment(node);
+        }
+
+        // Add AI comments for key moments
+        if (Lizzie.config.enableAiKeyComment && !Lizzie.config.openAiApiKey.isEmpty()) {
+          try {
+            // Get previous node to calculate score mean difference
+            BoardHistoryNode prevNode = node.previous().orElse(null);
+            if (prevNode != null) {
+              BoardData prevData = prevNode.getData();
+              double curScoreMean = data.getScoreMean();
+              double prevScoreMean = prevData.getScoreMean();
+              double deltaScoreMean = Math.abs(curScoreMean - prevScoreMean);
+
+              if (deltaScoreMean >= Lizzie.config.scoremeanCommentThreshold) {
+                // Create move info for AI comment generation
+                String coord = data.lastMove.isPresent() ? asCoord(data.lastMove.get()) : "pass";
+                String playerColor = Stone.BLACK.equals(data.lastMoveColor) ? "B" : "W";
+
+                OpenAiCommenter.MoveInfo moveInfo =
+                    new OpenAiCommenter.MoveInfo(
+                        data.moveNumber,
+                        playerColor,
+                        deltaScoreMean,
+                        prevScoreMean,
+                        curScoreMean,
+                        coord);
+
+                OpenAiCommenter commenter = new OpenAiCommenter(Lizzie.config.openAiApiKey);
+                String aiComment =
+                    commenter.generateComment(Lizzie.config.aiCommentsLanguage, moveInfo);
+
+                if (!aiComment.isEmpty()) {
+                  // Prepend AI comment to existing comment
+                  if (data.comment.isEmpty()) {
+                    data.comment = aiComment;
+                  } else {
+                    data.comment = aiComment + "\n\n" + data.comment;
+                  }
+                }
+              }
+            }
+          } catch (Exception e) {
+            // Silently continue if AI comment generation fails
+            // to ensure SGF export doesn't break
+          }
         }
 
         // Write the comment

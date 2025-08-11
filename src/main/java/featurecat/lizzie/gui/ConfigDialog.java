@@ -187,6 +187,12 @@ public class ConfigDialog extends JDialog {
   public JCheckBox chkShowScoremeanInSuggestion;
   public JTextPane tpGtpConsoleStyle;
 
+  // AI Comments UI Controls
+  public JCheckBox chkEnableAiKeyComment;
+  public JSpinner spnScoremeanCommentThreshold;
+  public JComboBox<String> cmbAiCommentsLanguage;
+  public JTextField txtOpenAiApiKey;
+
   // Theme Tab
   public JComboBox<String> cmbThemes;
   public JSpinner spnWinrateStrokeWidth;
@@ -1195,6 +1201,41 @@ public class ConfigDialog extends JDialog {
     tpGtpConsoleStyle.setBounds(170, 446, 460, 80);
     uiTab.add(tpGtpConsoleStyle);
 
+    // AI Comments section
+    JLabel lblAiComments = new JLabel("AI-комментарии");
+    lblAiComments.setBounds(6, 536, 157, 16);
+    uiTab.add(lblAiComments);
+
+    chkEnableAiKeyComment = new JCheckBox("Включить AI-комментарии для ключевых моментов");
+    chkEnableAiKeyComment.setBounds(170, 536, 460, 23);
+    uiTab.add(chkEnableAiKeyComment);
+
+    JLabel lblScoremeanThreshold = new JLabel("Порог ScoreMean для комментария:");
+    lblScoremeanThreshold.setBounds(6, 566, 200, 16);
+    uiTab.add(lblScoremeanThreshold);
+
+    spnScoremeanCommentThreshold = new JSpinner();
+    spnScoremeanCommentThreshold.setModel(new SpinnerNumberModel(1.0, 0.1, 10.0, 0.1));
+    spnScoremeanCommentThreshold.setBounds(210, 564, 80, 20);
+    uiTab.add(spnScoremeanCommentThreshold);
+
+    JLabel lblAiLanguage = new JLabel("Язык комментариев:");
+    lblAiLanguage.setBounds(300, 566, 120, 16);
+    uiTab.add(lblAiLanguage);
+
+    String[] languages = {"Русский (ru)", "English (en)", "Українська (uk)"};
+    cmbAiCommentsLanguage = new JComboBox<String>(languages);
+    cmbAiCommentsLanguage.setBounds(425, 564, 120, 20);
+    uiTab.add(cmbAiCommentsLanguage);
+
+    JLabel lblApiKey = new JLabel("OpenAI API ключ:");
+    lblApiKey.setBounds(6, 596, 120, 16);
+    uiTab.add(lblApiKey);
+
+    txtOpenAiApiKey = new JTextField();
+    txtOpenAiApiKey.setBounds(130, 594, 415, 20);
+    uiTab.add(txtOpenAiApiKey);
+
     setBoardSize();
     setShowMoveNumber();
     chkPanelUI.setSelected(Lizzie.config.panelUI);
@@ -1220,6 +1261,21 @@ public class ConfigDialog extends JDialog {
     chkShowPlayoutsInSuggestion.setSelected(Lizzie.config.showPlayoutsInSuggestion);
     chkShowScoremeanInSuggestion.setSelected(Lizzie.config.showScoremeanInSuggestion);
     tpGtpConsoleStyle.setText(Lizzie.config.gtpConsoleStyle);
+
+    // Initialize AI Comments UI controls
+    chkEnableAiKeyComment.setSelected(Lizzie.config.enableAiKeyComment);
+    spnScoremeanCommentThreshold.setValue(Lizzie.config.scoremeanCommentThreshold);
+    // Set language combo box
+    String langCode = Lizzie.config.aiCommentsLanguage;
+    if ("en".equals(langCode)) {
+      cmbAiCommentsLanguage.setSelectedIndex(1);
+    } else if ("uk".equals(langCode)) {
+      cmbAiCommentsLanguage.setSelectedIndex(2);
+    } else {
+      cmbAiCommentsLanguage.setSelectedIndex(0); // default to Russian
+    }
+    txtOpenAiApiKey.setText(Lizzie.config.openAiApiKey);
+
     chkShowWinrateInSuggestion.addChangeListener(
         new ChangeListener() {
           public void stateChanged(ChangeEvent e) {
@@ -2561,6 +2617,26 @@ public class ConfigDialog extends JDialog {
           "show-scoremean-in-suggestion", Lizzie.config.showScoremeanInSuggestion);
       Lizzie.config.uiConfig.put("gtp-console-style", tpGtpConsoleStyle.getText());
       Lizzie.config.uiConfig.put("theme", cmbThemes.getSelectedItem());
+
+      // Save AI Comments configuration
+      Lizzie.config.enableAiKeyComment = chkEnableAiKeyComment.isSelected();
+      Lizzie.config.uiConfig.put("enable-ai-key-comment", Lizzie.config.enableAiKeyComment);
+
+      Lizzie.config.scoremeanCommentThreshold = (Double) spnScoremeanCommentThreshold.getValue();
+      Lizzie.config.uiConfig.put(
+          "scoremean-comment-threshold", Lizzie.config.scoremeanCommentThreshold);
+
+      // Map combo box selection to language code
+      String selectedLang = "ru"; // default
+      int langIndex = cmbAiCommentsLanguage.getSelectedIndex();
+      if (langIndex == 1) selectedLang = "en";
+      else if (langIndex == 2) selectedLang = "uk";
+      Lizzie.config.aiCommentsLanguage = selectedLang;
+      Lizzie.config.uiConfig.put("ai-comments-language", Lizzie.config.aiCommentsLanguage);
+
+      Lizzie.config.openAiApiKey = txtOpenAiApiKey.getText().trim();
+      Lizzie.config.uiConfig.put("openai-api-key", Lizzie.config.openAiApiKey);
+
       writeThemeValues();
 
       Lizzie.config.save();

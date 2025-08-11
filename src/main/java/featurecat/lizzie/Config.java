@@ -115,6 +115,12 @@ public class Config {
       "body {background:#000000; color:#d0d0d0; font-family:Consolas, Menlo, Monaco, 'Ubuntu Mono', monospace; margin:4px;} .command {color:#ffffff;font-weight:bold;} .winrate {color:#ffffff;font-weight:bold;} .coord {color:#ffffff;font-weight:bold;}";
   public boolean notRefreshVariation = false;
 
+  // AI Comments configuration
+  public boolean enableAiKeyComment = false;
+  public double scoremeanCommentThreshold = 1.0;
+  public String aiCommentsLanguage = "ru";
+  public String openAiApiKey = "";
+
   private JSONObject loadAndMergeConfig(
       JSONObject defaultCfg, String fileName, boolean needValidation) throws IOException {
     File file = new File(fileName);
@@ -274,6 +280,12 @@ public class Config {
     nodeColorMode = theme.nodeColorMode();
 
     gtpConsoleStyle = uiConfig.optString("gtp-console-style", defaultGtpConsoleStyle);
+
+    // AI Comments configuration
+    enableAiKeyComment = uiConfig.optBoolean("enable-ai-key-comment", false);
+    scoremeanCommentThreshold = uiConfig.optDouble("scoremean-comment-threshold", 1.0);
+    aiCommentsLanguage = uiConfig.optString("ai-comments-language", "ru");
+    openAiApiKey = uiConfig.optString("openai-api-key", "");
 
     System.out.println(Locale.getDefault().getLanguage()); // todo add config option for language...
     setLanguage(Locale.getDefault().getLanguage());
@@ -556,6 +568,13 @@ public class Config {
     ui.put("show-katago-estimate-onmainboard", true);
     ui.put("katago-estimate-mode", "small");
     ui.put("katago-estimate-blend", true);
+
+    // AI Comments defaults
+    ui.put("enable-ai-key-comment", false);
+    ui.put("scoremean-comment-threshold", 1.0);
+    ui.put("ai-comments-language", "ru");
+    ui.put("openai-api-key", "");
+
     config.put("ui", ui);
     return config;
   }
