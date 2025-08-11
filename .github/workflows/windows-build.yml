@@ -24,14 +24,13 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Grant execute permission for Gradlew
-      run: git update-index --chmod=+x gradlew
-
-    - name: Build Lizzie with Gradle
-      run: ./gradlew build
+    - name: Build Lizzie with Maven
+      run: mvn package
 
     - name: Upload lizzie jar artifact
       uses: actions/upload-artifact@v4
       with:
         name: lizzie-jar
-        path: build/libs/*.jar
+        path: target/*.jar
+        if-no-files-found: error
+        retention-days: 7
