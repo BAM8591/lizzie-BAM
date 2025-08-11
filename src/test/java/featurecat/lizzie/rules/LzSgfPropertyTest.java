@@ -151,4 +151,39 @@ public class LzSgfPropertyTest {
     assertEquals("Should have one move", 1, effectiveAnalysis.size());
     assertEquals("Should be Q16", "Q16", effectiveAnalysis.get(0).coordinate);
   }
+
+  @Test
+  public void testEffectiveWinrateAndPlayouts() throws IOException {
+    String sgfWithLz =
+        "(;GM[1]FF[4]SZ[19];B[pd]LZ[info move Q16 visits 1500 winrate 5420 pv Q16 D4])";
+
+    boolean loaded = SGFParser.loadFromString(sgfWithLz);
+    assertTrue("SGF should load successfully", loaded);
+
+    // Move to the node with LZ property
+    Lizzie.board.nextMove();
+
+    BoardData data = Lizzie.board.getData();
+
+    // Since no live analysis is present (playouts == 0), should use LZ data
+    assertEquals("Should use LZ winrate", 54.20, data.getWinrate(), 0.01);
+    assertEquals("Should use LZ playouts", 1500, data.getPlayouts());
+  }
+
+  @Test
+  public void testEffectiveScoreMean() throws IOException {
+    String sgfWithKataGo =
+        "(;GM[1]FF[4]SZ[19];B[pd]LZ[info move Q16 visits 100 winrate 5420 scoreMean 2.5 pv Q16 D4])";
+
+    boolean loaded = SGFParser.loadFromString(sgfWithKataGo);
+    assertTrue("SGF should load successfully", loaded);
+
+    // Move to the node with LZ property
+    Lizzie.board.nextMove();
+
+    BoardData data = Lizzie.board.getData();
+
+    // Should use LZ score mean when available
+    assertEquals("Should use LZ score mean", 2.5, data.getScoreMean(), 0.01);
+  }
 }

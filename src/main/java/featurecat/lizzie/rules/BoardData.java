@@ -173,6 +173,16 @@ public class BoardData {
   }
 
   public double getWinrate() {
+    // Use LZ data winrate if available and no live analysis is overriding
+    if (hasLzAnalysis() && lzData != null && getPlayouts() == 0) {
+      double lzWinrate = lzData.winrate;
+      if (!blackToPlay || !Lizzie.config.uiConfig.getBoolean("win-rate-always-black")) {
+        return lzWinrate;
+      } else {
+        return 100 - lzWinrate;
+      }
+    }
+
     if (!blackToPlay || !Lizzie.config.uiConfig.getBoolean("win-rate-always-black")) {
       return winrate;
     } else {
@@ -217,6 +227,10 @@ public class BoardData {
   }
 
   public double getScoreMean() {
+    // Use LZ data score mean if available and no live analysis is overriding
+    if (hasLzAnalysis() && lzData != null && playouts == 0 && lzData.scoreMean != 0.0) {
+      return Utils.actualScoreMean(lzData.scoreMean);
+    }
     return Utils.actualScoreMean(scoreMean);
   }
 
@@ -249,6 +263,10 @@ public class BoardData {
   }
 
   public int getPlayouts() {
+    // Use LZ data playouts if available and no live analysis is overriding
+    if (hasLzAnalysis() && lzData != null && playouts == 0) {
+      return lzData.playouts;
+    }
     return playouts;
   }
 

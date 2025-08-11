@@ -590,11 +590,15 @@ public class BoardRenderer {
 
     // calculate best moves and branch
     bestMoves = Lizzie.leelaz.getBestMoves();
+
+    // Use LZ analysis data when available, or stored bestMoves when appropriate
+    List<MoveData> effectiveAnalysis = Lizzie.board.getData().getEffectiveAnalysis();
     if (Lizzie.config.showBestMovesByHold
         && Leelaz.engineIndex == Lizzie.board.getData().engineIndex
         && Lizzie.board.getHistory().getGameInfo().getKomi() == Lizzie.board.getData().komi
-        && MoveData.getPlayouts(bestMoves) < Lizzie.board.getData().getPlayouts()) {
-      bestMoves = Lizzie.board.getData().bestMoves;
+        && (MoveData.getPlayouts(bestMoves) < MoveData.getPlayouts(effectiveAnalysis)
+            || Lizzie.board.getData().hasLzAnalysis())) {
+      bestMoves = effectiveAnalysis;
     }
 
     variationOpt = Optional.empty();
