@@ -1,0 +1,37 @@
+name: Build Lizzie (Windows)
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up JDK
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Grant execute permission for Gradlew
+      run: git update-index --chmod=+x gradlew
+
+    - name: Build Lizzie with Gradle
+      run: ./gradlew build
+
+    - name: Upload lizzie jar artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: lizzie-jar
+        path: build/libs/*.jar
