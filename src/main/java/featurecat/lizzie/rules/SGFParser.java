@@ -5,6 +5,7 @@ import static java.util.Arrays.asList;
 import featurecat.lizzie.Lizzie;
 import featurecat.lizzie.analysis.GameInfo;
 import featurecat.lizzie.analysis.Leelaz;
+import featurecat.lizzie.analysis.MoveData;
 import featurecat.lizzie.util.EncodingDetector;
 import featurecat.lizzie.util.Utils;
 import java.io.File;
@@ -16,7 +17,9 @@ import java.io.OutputStreamWriter;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Matcher;
@@ -278,33 +281,48 @@ public class SGFParser {
                 history.getData().comment = tagContent;
               }
             }
-          } else if (tag.equals("LZ") && Lizzie.config.holdBestMovesToSgf && history == null) {
-            // Content contains data for Lizzie to read
-            String[] lines = tagContent.split("\n");
-            String[] line1 = lines[0].split(" ");
-            String line2 = "";
-            if (lines.length > 1) {
-              line2 = lines[1];
+          } else if (tag.equals("LZ")) {
+            // Parse LZ[] content for precomputed analysis
+            List<MoveData> lzMoves = parseLzContent(tagContent);
+            if (lzMoves != null) {
+              if (history == null) {
+                Lizzie.board.getData().setLzAnalysis(lzMoves);
+              } else {
+                history.getData().setLzAnalysis(lzMoves);
+              }
             }
-            String versionNumber = line1[0];
-            line1[1] =
-                line1[1].replaceAll(",", "."); // fix a decimal representation localization issue
-            Lizzie.board.getData().winrate = 100 - Double.parseDouble(line1[1]);
-            int numPlayouts =
-                Integer.parseInt(
-                    line1[2]
-                        .replaceAll("k", "000")
-                        .replaceAll("m", "000000")
-                        .replaceAll("[^0-9]", ""));
-            Lizzie.board.getData().setPlayouts(numPlayouts);
-            if (numPlayouts > 0 && !line2.isEmpty()) {
-              Lizzie.board.getData().bestMoves = Lizzie.leelaz.parseInfo(line2);
-              if (line2.contains("scoreMean")) {
-                Lizzie.leelaz.supportScoremean = true;
-                Lizzie.board.getData().scoreMean =
-                    Lizzie.board
-                        .getData()
-                        .getScoreMeanFromBestMoves(Lizzie.board.getData().bestMoves);
+
+            // Legacy parsing for backward compatibility with existing LZ format
+            if (Lizzie.config.holdBestMovesToSgf && history == null && lzMoves == null) {
+              String[] lines = tagContent.split("\n");
+              if (lines.length > 0) {
+                String[] line1 = lines[0].split(" ");
+                if (line1.length >= 3) {
+                  try {
+                    line1[1] = line1[1].replaceAll(",", "."); // fix decimal representation
+                    Lizzie.board.getData().winrate = 100 - Double.parseDouble(line1[1]);
+                    int numPlayouts =
+                        Integer.parseInt(
+                            line1[2]
+                                .replaceAll("k", "000")
+                                .replaceAll("m", "000000")
+                                .replaceAll("[^0-9]", ""));
+                    Lizzie.board.getData().setPlayouts(numPlayouts);
+
+                    if (lines.length > 1 && numPlayouts > 0 && !lines[1].isEmpty()) {
+                      Lizzie.board.getData().bestMoves = Lizzie.leelaz.parseInfo(lines[1]);
+                      if (lines[1].contains("scoreMean")) {
+                        Lizzie.leelaz.supportScoremean = true;
+                        Lizzie.board.getData().scoreMean =
+                            Lizzie.board
+                                .getData()
+                                .getScoreMeanFromBestMoves(Lizzie.board.getData().bestMoves);
+                      }
+                    }
+                  } catch (NumberFormatException e) {
+                    // Ignore parsing errors for legacy format
+                  }
+                }
               }
             }
           } else if (tag.equals("AB") || tag.equals("AW")) {
@@ -1028,5 +1046,58 @@ public class SGFParser {
     char y = alphabet.charAt(c[1]);
 
     return String.format("%c%c", x, y);
+  }
+
+  /**
+   * Parse LZ[] SGF property content to extract analysis data
+   *
+   * @param lzContent the content of the LZ[] property
+   * @return List of MoveData parsed from the content, or null if parsing fails
+   */
+  private static List<MoveData> parseLzContent(String lzContent) {
+    if (lzContent == null || lzContent.trim().isEmpty()) {
+      return null;
+    }
+
+    List<MoveData> result = new ArrayList<>();
+    String[] lines = lzContent.split("\n");
+
+    for (String line : lines) {
+      line = line.trim();
+      if (line.isEmpty()) {
+        continue;
+      }
+
+      // Try to parse as modern info format first (Lizzie/Leela Zero format)
+      if (line.startsWith("info ")) {
+        try {
+          // Check if it looks like KataGo format (contains "utility" or floating point winrate)
+          if (line.contains("utility") || line.matches(".*winrate\\s+[0-9]*\\.[0-9]+.*")) {
+            result.add(MoveData.fromInfoKatago(line));
+          } else {
+            result.add(MoveData.fromInfo(line));
+          }
+        } catch (Exception e) {
+          // If parsing fails, skip this line
+          continue;
+        }
+      }
+      // Also try to parse each line that might be an info line without "info" prefix
+      else if (line.contains("move ") && line.contains("visits ")) {
+        try {
+          // Check if it looks like KataGo format
+          if (line.contains("utility") || line.matches(".*winrate\\s+[0-9]*\\.[0-9]+.*")) {
+            result.add(MoveData.fromInfoKatago("info " + line));
+          } else {
+            result.add(MoveData.fromInfo("info " + line));
+          }
+        } catch (Exception e) {
+          // If parsing fails, skip this line
+          continue;
+        }
+      }
+    }
+
+    return result.isEmpty() ? null : result;
   }
 }

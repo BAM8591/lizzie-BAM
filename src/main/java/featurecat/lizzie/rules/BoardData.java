@@ -32,6 +32,10 @@ public class BoardData {
   public int blackCaptures;
   public int whiteCaptures;
 
+  // LZ[] analysis from SGF
+  public MoveData lzData;
+  public List<MoveData> lzCandidates;
+
   public String comment = "";
 
   // Node properties
@@ -70,6 +74,8 @@ public class BoardData {
     this.blackCaptures = blackCaptures;
     this.whiteCaptures = whiteCaptures;
     this.bestMoves = new ArrayList<>();
+    this.lzData = null;
+    this.lzCandidates = null;
   }
 
   public static BoardData empty(int width, int height) {
@@ -246,6 +252,25 @@ public class BoardData {
     return playouts;
   }
 
+  /** Set LZ analysis data from SGF */
+  public void setLzAnalysis(List<MoveData> lzMoves) {
+    this.lzCandidates = lzMoves;
+    this.lzData = (lzMoves != null && !lzMoves.isEmpty()) ? lzMoves.get(0) : null;
+  }
+
+  /** Get effective analysis data - returns LZ data if available, otherwise bestMoves */
+  public List<MoveData> getEffectiveAnalysis() {
+    if (lzCandidates != null && !lzCandidates.isEmpty()) {
+      return lzCandidates;
+    }
+    return bestMoves;
+  }
+
+  /** Check if LZ analysis data is available */
+  public boolean hasLzAnalysis() {
+    return lzCandidates != null && !lzCandidates.isEmpty();
+  }
+
   public void sync(BoardData data) {
     this.moveMNNumber = data.moveMNNumber;
     this.moveNumber = data.moveNumber;
@@ -260,6 +285,8 @@ public class BoardData {
     this.blackCaptures = data.blackCaptures;
     this.whiteCaptures = data.whiteCaptures;
     this.comment = data.comment;
+    this.lzData = data.lzData;
+    this.lzCandidates = data.lzCandidates;
   }
 
   public BoardData clone() {
