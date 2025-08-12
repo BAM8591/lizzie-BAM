@@ -211,6 +211,14 @@ public class ConfigDialog extends JDialog {
   public JRadioButton rdoStoneIndicatorNo;
   public JCheckBox chkShowCommentNodeColor;
   public ColorLabel lblCommentNodeColor;
+
+  // AI comment configuration fields
+  public JCheckBox chkEnableAiKeyComment;
+  public JTextField txtAiCommentThreshold;
+  public JComboBox<String> cmbAiCommentsLanguage;
+  public JTextField txtAiCommentsMax;
+  public JTextField txtOpenAiApiKey;
+
   public JTable tblBlunderNodes;
   public String[] columsBlunderNodes;
   public JButton btnBackgroundPath;
@@ -1481,21 +1489,67 @@ public class ConfigDialog extends JDialog {
       themeTab.add(txtCommentFontSize);
       txtLimitBranchLength.setColumns(10);
 
+      // AI Comment Configuration Section
+      JLabel lblEnableAiKeyComment =
+          new JLabel(resourceBundle.getString("LizzieConfig.title.enableAiKeyComment"));
+      lblEnableAiKeyComment.setHorizontalAlignment(SwingConstants.LEFT);
+      lblEnableAiKeyComment.setBounds(370, 435, 148, 16);
+      themeTab.add(lblEnableAiKeyComment);
+      chkEnableAiKeyComment = new JCheckBox("");
+      chkEnableAiKeyComment.setBounds(529, 432, 33, 23);
+      themeTab.add(chkEnableAiKeyComment);
+
+      JLabel lblAiCommentThreshold =
+          new JLabel(resourceBundle.getString("LizzieConfig.title.aiCommentThreshold"));
+      lblAiCommentThreshold.setHorizontalAlignment(SwingConstants.LEFT);
+      lblAiCommentThreshold.setBounds(370, 465, 148, 16);
+      themeTab.add(lblAiCommentThreshold);
+      txtAiCommentThreshold = new JTextField();
+      txtAiCommentThreshold.setBounds(529, 463, 52, 24);
+      themeTab.add(txtAiCommentThreshold);
+
+      JLabel lblAiCommentsLanguage =
+          new JLabel(resourceBundle.getString("LizzieConfig.title.aiCommentsLanguage"));
+      lblAiCommentsLanguage.setHorizontalAlignment(SwingConstants.LEFT);
+      lblAiCommentsLanguage.setBounds(370, 495, 148, 16);
+      themeTab.add(lblAiCommentsLanguage);
+      cmbAiCommentsLanguage = new JComboBox<>(new String[] {"en", "ru", "zh", "ja"});
+      cmbAiCommentsLanguage.setBounds(529, 493, 80, 24);
+      themeTab.add(cmbAiCommentsLanguage);
+
+      JLabel lblAiCommentsMax =
+          new JLabel(resourceBundle.getString("LizzieConfig.title.aiCommentsMax"));
+      lblAiCommentsMax.setHorizontalAlignment(SwingConstants.LEFT);
+      lblAiCommentsMax.setBounds(370, 525, 148, 16);
+      themeTab.add(lblAiCommentsMax);
+      txtAiCommentsMax = new JTextField();
+      txtAiCommentsMax.setBounds(529, 523, 52, 24);
+      themeTab.add(txtAiCommentsMax);
+
+      JLabel lblOpenAiApiKey =
+          new JLabel(resourceBundle.getString("LizzieConfig.title.openAiApiKey"));
+      lblOpenAiApiKey.setHorizontalAlignment(SwingConstants.LEFT);
+      lblOpenAiApiKey.setBounds(370, 555, 148, 16);
+      themeTab.add(lblOpenAiApiKey);
+      txtOpenAiApiKey = new JTextField();
+      txtOpenAiApiKey.setBounds(529, 553, 120, 24);
+      themeTab.add(txtOpenAiApiKey);
+
       JLabel lblStoneIndicatorType =
           new JLabel(resourceBundle.getString("LizzieConfig.title.stoneIndicatorType"));
-      lblStoneIndicatorType.setBounds(10, 442, 163, 16);
+      lblStoneIndicatorType.setBounds(10, 592, 163, 16);
       themeTab.add(lblStoneIndicatorType);
       rdoStoneIndicatorCircle =
           new JRadioButton(resourceBundle.getString("LizzieConfig.title.stoneIndicatorCircle"));
-      rdoStoneIndicatorCircle.setBounds(170, 439, 57, 23);
+      rdoStoneIndicatorCircle.setBounds(170, 589, 57, 23);
       themeTab.add(rdoStoneIndicatorCircle);
       rdoStoneIndicatorSolid =
           new JRadioButton(resourceBundle.getString("LizzieConfig.title.stoneIndicatorSolid"));
-      rdoStoneIndicatorSolid.setBounds(230, 439, 57, 23);
+      rdoStoneIndicatorSolid.setBounds(230, 589, 57, 23);
       themeTab.add(rdoStoneIndicatorSolid);
       rdoStoneIndicatorNo =
           new JRadioButton(resourceBundle.getString("LizzieConfig.title.stoneIndicatorNo"));
-      rdoStoneIndicatorNo.setBounds(290, 439, 57, 23);
+      rdoStoneIndicatorNo.setBounds(290, 589, 57, 23);
       themeTab.add(rdoStoneIndicatorNo);
 
       ButtonGroup stoneIndicatorTypeGroup = new ButtonGroup();
@@ -1505,19 +1559,19 @@ public class ConfigDialog extends JDialog {
 
       JLabel lblShowCommentNodeColor =
           new JLabel(resourceBundle.getString("LizzieConfig.title.showCommentNodeColor"));
-      lblShowCommentNodeColor.setBounds(10, 465, 163, 16);
+      lblShowCommentNodeColor.setBounds(10, 615, 163, 16);
       themeTab.add(lblShowCommentNodeColor);
       chkShowCommentNodeColor = new JCheckBox("");
-      chkShowCommentNodeColor.setBounds(170, 462, 33, 23);
+      chkShowCommentNodeColor.setBounds(170, 612, 33, 23);
       themeTab.add(chkShowCommentNodeColor);
 
       JLabel lblCommentNodeColorTitle =
           new JLabel(resourceBundle.getString("LizzieConfig.title.commentNodeColor"));
       lblCommentNodeColorTitle.setHorizontalAlignment(SwingConstants.LEFT);
-      lblCommentNodeColorTitle.setBounds(210, 465, 138, 16);
+      lblCommentNodeColorTitle.setBounds(210, 615, 138, 16);
       themeTab.add(lblCommentNodeColorTitle);
       lblCommentNodeColor = new ColorLabel(owner);
-      lblCommentNodeColor.setBounds(351, 462, 22, 22);
+      lblCommentNodeColor.setBounds(351, 612, 22, 22);
       themeTab.add(lblCommentNodeColor);
 
       JLabel lblBlunderNodes =
@@ -2325,6 +2379,14 @@ public class ConfigDialog extends JDialog {
         lblCommentBackgroundColor.setColor(theme.commentBackgroundColor());
         lblCommentFontColor.setColor(theme.commentFontColor());
         txtCommentFontSize.setText(String.valueOf(theme.commentFontSize()));
+
+        // Initialize AI comment configuration from Lizzie.config
+        chkEnableAiKeyComment.setSelected(Lizzie.config.enableAiKeyComment);
+        txtAiCommentThreshold.setText(String.valueOf(Lizzie.config.aiCommentThreshold));
+        cmbAiCommentsLanguage.setSelectedItem(Lizzie.config.aiCommentsLanguage);
+        txtAiCommentsMax.setText(String.valueOf(Lizzie.config.aiCommentsMax));
+        txtOpenAiApiKey.setText(Lizzie.config.openAiApiKey);
+
         tblBlunderNodes.setModel(
             new BlunderNodeTableModel(
                 theme.blunderWinrateThresholds().orElse(null),
@@ -2377,6 +2439,14 @@ public class ConfigDialog extends JDialog {
             "comment-background-color", Theme.color2Array(lblCommentBackgroundColor.getColor()));
         theme.config.put("comment-font-color", Theme.color2Array(lblCommentFontColor.getColor()));
         theme.config.put("comment-font-size", txtFieldIntValue(txtCommentFontSize));
+
+        // Save AI comment configuration to Lizzie.config
+        Lizzie.config.enableAiKeyComment = chkEnableAiKeyComment.isSelected();
+        Lizzie.config.aiCommentThreshold = Double.parseDouble(txtAiCommentThreshold.getText());
+        Lizzie.config.aiCommentsLanguage = (String) cmbAiCommentsLanguage.getSelectedItem();
+        Lizzie.config.aiCommentsMax = Integer.parseInt(txtAiCommentsMax.getText());
+        Lizzie.config.openAiApiKey = txtOpenAiApiKey.getText();
+
         theme.config.put(
             "blunder-winrate-thresholds",
             ((BlunderNodeTableModel) tblBlunderNodes.getModel()).getThresholdArray());
@@ -2433,6 +2503,14 @@ public class ConfigDialog extends JDialog {
         Theme.array2Color(Lizzie.config.uiConfig.optJSONArray("comment-font-color"), Color.WHITE));
     txtCommentFontSize.setText(
         String.valueOf(Lizzie.config.uiConfig.optInt("comment-font-size", 3)));
+
+    // Initialize AI comment configuration from Lizzie.config
+    chkEnableAiKeyComment.setSelected(Lizzie.config.enableAiKeyComment);
+    txtAiCommentThreshold.setText(String.valueOf(Lizzie.config.aiCommentThreshold));
+    cmbAiCommentsLanguage.setSelectedItem(Lizzie.config.aiCommentsLanguage);
+    txtAiCommentsMax.setText(String.valueOf(Lizzie.config.aiCommentsMax));
+    txtOpenAiApiKey.setText(Lizzie.config.openAiApiKey);
+
     Theme defTheme = new Theme("");
     tblBlunderNodes.setModel(
         new BlunderNodeTableModel(
@@ -2469,6 +2547,14 @@ public class ConfigDialog extends JDialog {
     Lizzie.config.uiConfig.put(
         "comment-font-color", Theme.color2Array(lblCommentFontColor.getColor()));
     Lizzie.config.uiConfig.put("comment-font-size", txtFieldIntValue(txtCommentFontSize));
+
+    // Save AI comment configuration to Lizzie.config
+    Lizzie.config.enableAiKeyComment = chkEnableAiKeyComment.isSelected();
+    Lizzie.config.aiCommentThreshold = Double.parseDouble(txtAiCommentThreshold.getText());
+    Lizzie.config.aiCommentsLanguage = (String) cmbAiCommentsLanguage.getSelectedItem();
+    Lizzie.config.aiCommentsMax = Integer.parseInt(txtAiCommentsMax.getText());
+    Lizzie.config.openAiApiKey = txtOpenAiApiKey.getText();
+
     Lizzie.config.uiConfig.put(
         "blunder-winrate-thresholds",
         ((BlunderNodeTableModel) tblBlunderNodes.getModel()).getThresholdArray());

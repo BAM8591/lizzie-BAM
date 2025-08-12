@@ -3,6 +3,7 @@ package featurecat.lizzie.rules;
 import static java.util.Arrays.asList;
 
 import featurecat.lizzie.Lizzie;
+import featurecat.lizzie.ai.AiCommentService;
 import featurecat.lizzie.analysis.GameInfo;
 import featurecat.lizzie.analysis.Leelaz;
 import featurecat.lizzie.util.EncodingDetector;
@@ -16,7 +17,10 @@ import java.io.OutputStreamWriter;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Matcher;
@@ -602,6 +606,9 @@ public class SGFParser {
       Lizzie.board.updateWinrate();
     }
 
+    // Generate AI comments for key moves if enabled
+    generateAiComments(history);
+
     // move to the first move
     history.toStart();
 
@@ -1028,5 +1035,144 @@ public class SGFParser {
     char y = alphabet.charAt(c[1]);
 
     return String.format("%c%c", x, y);
+  }
+
+  /** Generate AI comments for key moves based on winrate swings */
+  private static void generateAiComments(BoardHistoryList history) {
+    try {
+      AiCommentService aiService = AiCommentService.getInstance();
+      if (!aiService.isEnabled()) {
+        return;
+      }
+
+      // Collect all moves with winrate data
+      List<MoveCandidate> candidates = new ArrayList<>();
+
+      // Start from the beginning
+      history.toStart();
+      BoardHistoryNode current = history.getCurrentHistoryNode();
+      int moveNumber = 0;
+
+      while (current != null) {
+        moveNumber++;
+        BoardData data = current.getData();
+
+        // Skip if this move doesn't have enough data
+        if (data.getPlayouts() < 100) {
+          current = current.next().orElse(null);
+          continue;
+        }
+
+        // Get previous move data for winrate comparison
+        Optional<BoardHistoryNode> previousOpt = current.previous();
+        if (previousOpt.isPresent()) {
+          BoardData prevData = previousOpt.get().getData();
+          if (prevData.getPlayouts() >= 100) {
+            double winrateBefore = prevData.getWinrate();
+            double winrateAfter = data.getWinrate();
+            double swing = Math.abs(winrateAfter - winrateBefore);
+
+            // Check if this move meets the threshold
+            if (swing >= Lizzie.config.aiCommentThreshold * 100) {
+              Stone stone = moveNumber % 2 == 1 ? Stone.BLACK : Stone.WHITE;
+              int[] coordinates = data.lastMove.orElse(null);
+
+              MoveCandidate candidate =
+                  new MoveCandidate(
+                      moveNumber,
+                      current,
+                      stone,
+                      coordinates,
+                      winrateBefore,
+                      winrateAfter,
+                      swing,
+                      data.getPlayouts());
+              candidates.add(candidate);
+            }
+          }
+        }
+
+        current = current.next().orElse(null);
+      }
+
+      // Sort by winrate swing (descending) and limit to max comments
+      candidates.sort(Comparator.comparingDouble(c -> -c.swing));
+      int maxComments = Math.min(candidates.size(), Lizzie.config.aiCommentsMax);
+
+      // Request AI comments for selected moves
+      for (int i = 0; i < maxComments; i++) {
+        try {
+          MoveCandidate candidate = candidates.get(i);
+
+          AiCommentService.MoveContext context =
+              new AiCommentService.MoveContext(
+                  candidate.moveNumber,
+                  candidate.stone,
+                  candidate.coordinates,
+                  candidate.winrateBefore,
+                  candidate.winrateAfter,
+                  candidate.playouts,
+                  null // bestMoves not available here
+                  );
+
+          String aiComment = aiService.requestComment(context);
+          if (aiComment != null && !aiComment.trim().isEmpty()) {
+            BoardData data = candidate.node.getData();
+            String existingComment = data.comment;
+
+            // Append AI comment, avoid duplicates
+            if (existingComment == null || existingComment.trim().isEmpty()) {
+              data.comment = aiComment;
+            } else if (!existingComment.contains("AI:")) {
+              data.comment = existingComment + "\n" + aiComment;
+            }
+          }
+
+          // Brief pause between API calls to be respectful
+          if (i < maxComments - 1) {
+            Thread.sleep(150);
+          }
+        } catch (InterruptedException e) {
+          System.err.println("AI comment generation interrupted");
+          break;
+        } catch (Exception e) {
+          System.err.println("Error generating AI comment: " + e.getMessage());
+        }
+      }
+
+    } catch (Exception e) {
+      System.err.println("AI comment generation failed: " + e.getMessage());
+    }
+  }
+
+  /** Helper class to hold move candidate data for AI comment generation */
+  private static class MoveCandidate {
+    final int moveNumber;
+    final BoardHistoryNode node;
+    final Stone stone;
+    final int[] coordinates;
+    final double winrateBefore;
+    final double winrateAfter;
+    final double swing;
+    final int playouts;
+
+    MoveCandidate(
+        int moveNumber,
+        BoardHistoryNode node,
+        Stone stone,
+        int[] coordinates,
+        double winrateBefore,
+        double winrateAfter,
+        double swing,
+        int playouts) {
+      this.moveNumber = moveNumber;
+      this.node = node;
+      this.stone = stone;
+      this.coordinates = coordinates;
+      this.winrateBefore = winrateBefore;
+      this.winrateAfter = winrateAfter;
+      this.swing = swing;
+      this.playouts = playouts;
+    }
   }
 }
