@@ -107,6 +107,14 @@ public class Config {
   public boolean appendWinrateToComment = true;
   public boolean holdBestMovesToSgf = true;
   public boolean showBestMovesByHold = true;
+
+  // ---- AI Key Comment (OpenAI) feature ----
+  public boolean enableAiKeyComment = false; // master flag (default off)
+  public double aiCommentThreshold = 0.07; // absolute winrate delta (e.g. 0.07 = 7 p.p.)
+  public String aiCommentsLanguage = "en"; // language code for AI output
+  public int aiCommentsMax = 30; // maximum AI comments per SGF export
+  public String openAiApiKey = ""; // persisted only (sensitive)
+  public boolean debug = false;
   public int boardPositionProportion = 4;
   public int limitBestMoveNum = 0;
   public int limitBranchLength = 0;
@@ -182,6 +190,24 @@ public class Config {
     return madeCorrections;
   }
 
+  private void loadAiCommentConfig(
+      JSONObject cfg, JSONObject uiCfg, JSONObject persistedCfg, JSONObject persistedUiCfg) {
+    enableAiKeyComment =
+        cfg.optBoolean(
+            "enable-ai-key-comment", uiCfg.optBoolean("enable-ai-key-comment", enableAiKeyComment));
+    aiCommentThreshold =
+        cfg.optDouble(
+            "ai-comment-threshold", uiCfg.optDouble("ai-comment-threshold", aiCommentThreshold));
+    aiCommentsLanguage =
+        cfg.optString(
+            "ai-comments-language", uiCfg.optString("ai-comments-language", aiCommentsLanguage));
+    aiCommentsMax = cfg.optInt("ai-comments-max", uiCfg.optInt("ai-comments-max", aiCommentsMax));
+    openAiApiKey =
+        persistedCfg.optString(
+            "openai-api-key", persistedUiCfg.optString("openai-api-key", openAiApiKey));
+    debug = cfg.optBoolean("debug", debug);
+  }
+
   public Config() throws IOException {
     JSONObject defaultConfig = createDefaultConfig();
     JSONObject persistConfig = createPersistConfig();
@@ -196,6 +222,9 @@ public class Config {
     persistedUi = persisted.getJSONObject("ui-persist");
 
     theme = new Theme(uiConfig);
+
+    // Load AI comment related settings (after loading JSON sources)
+    loadAiCommentConfig(config, uiConfig, persisted, persistedUi);
 
     panelUI = uiConfig.optBoolean("panel-ui", false);
     showBorder = uiConfig.optBoolean("show-border", false);
