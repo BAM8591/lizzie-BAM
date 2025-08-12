@@ -127,6 +127,81 @@ public class SGFParser {
     parseValue(value, null, false);
     Lizzie.leelaz.isAttached = true;
 
+    // --- AI Key Comment Generation ---
+    if (Lizzie.config.enableAiKeyComment
+        && featurecat.lizzie.ai.AiCommentService.get().isEnabled()) {
+      try {
+        java.util.List<featurecat.lizzie.ai.AiCommentService.MoveContext> candidates =
+            new java.util.ArrayList<>();
+        BoardHistoryList cursor = Lizzie.board.getHistory();
+        cursor.toStart();
+        double prevWinrate = cursor.getData().winrate;
+        int moveNumber = 0;
+        while (cursor.getNext().isPresent()) {
+          BoardData nextData = cursor.next().get();
+          moveNumber++;
+          boolean isBlack = (moveNumber % 2 == 1);
+          double playedWinrate = nextData.winrate;
+          if (playedWinrate <= 0 && prevWinrate > 0) {
+            prevWinrate = playedWinrate;
+            continue;
+          }
+          double bestWinrate = Math.max(prevWinrate, playedWinrate);
+          double delta = Math.abs(bestWinrate - playedWinrate);
+          if (delta >= Lizzie.config.aiCommentThreshold) {
+            featurecat.lizzie.ai.AiCommentService.MoveContext ctx =
+                new featurecat.lizzie.ai.AiCommentService.MoveContext();
+            ctx.moveNumber = moveNumber;
+            ctx.isBlack = isBlack;
+            ctx.winrateBefore = prevWinrate;
+            ctx.playedWinrate = playedWinrate;
+            ctx.bestWinrate = bestWinrate;
+            ctx.bestCoord = (bestWinrate == playedWinrate ? "-" : "N/A");
+            if (nextData.lastMove.isPresent()) {
+              int[] mv = nextData.lastMove.get();
+              ctx.playedCoord = String.format("%c%c", (char) ('a' + mv[0]), (char) ('a' + mv[1]));
+            } else {
+              ctx.playedCoord = "pass";
+            }
+            candidates.add(ctx);
+          }
+          prevWinrate = playedWinrate;
+        }
+        candidates.sort((a, b) -> Double.compare(b.delta(), a.delta()));
+        if (candidates.size() > Lizzie.config.aiCommentsMax)
+          candidates = candidates.subList(0, Lizzie.config.aiCommentsMax);
+        java.util.Map<Integer, String> aiComments = new java.util.HashMap<>();
+        for (featurecat.lizzie.ai.AiCommentService.MoveContext ctx : candidates) {
+          String comment = featurecat.lizzie.ai.AiCommentService.get().requestComment(ctx);
+          if (comment != null && !comment.isEmpty()) aiComments.put(ctx.moveNumber, comment);
+          try {
+            Thread.sleep(150);
+          } catch (InterruptedException ie) {
+          }
+        }
+        if (!aiComments.isEmpty()) {
+          BoardHistoryList applyCursor = Lizzie.board.getHistory();
+          applyCursor.toStart();
+          int m = 0;
+          while (applyCursor.getNext().isPresent()) {
+            applyCursor.next();
+            m++;
+            if (aiComments.containsKey(m)) {
+              String add = aiComments.get(m);
+              if (applyCursor.getData().comment == null || applyCursor.getData().comment.isEmpty())
+                applyCursor.getData().comment = add;
+              else if (!applyCursor.getData().comment.contains(add))
+                applyCursor.getData().comment += "\n" + add;
+            }
+          }
+          Lizzie.board.getHistory().toStart();
+        }
+      } catch (Exception e) {
+        System.err.println("[AI] Failed AI annotation: " + e.getMessage());
+        if (Lizzie.config.debug) e.printStackTrace();
+      }
+    }
+
     return true;
   }
 
