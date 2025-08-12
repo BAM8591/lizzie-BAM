@@ -115,6 +115,14 @@ public class Config {
       "body {background:#000000; color:#d0d0d0; font-family:Consolas, Menlo, Monaco, 'Ubuntu Mono', monospace; margin:4px;} .command {color:#ffffff;font-weight:bold;} .winrate {color:#ffffff;font-weight:bold;} .coord {color:#ffffff;font-weight:bold;}";
   public boolean notRefreshVariation = false;
 
+  // AI Commentary Configuration
+  public boolean enableAiKeyComment = false;
+  public double aiCommentThreshold = 0.05;
+  public String aiCommentsLanguage = "en";
+  public String openAiApiKey = "";
+  public int aiCommentsMax = 10;
+  public boolean debug = false;
+
   private JSONObject loadAndMergeConfig(
       JSONObject defaultCfg, String fileName, boolean needValidation) throws IOException {
     File file = new File(fileName);
@@ -274,6 +282,15 @@ public class Config {
     nodeColorMode = theme.nodeColorMode();
 
     gtpConsoleStyle = uiConfig.optString("gtp-console-style", defaultGtpConsoleStyle);
+
+    // Load AI Commentary Configuration
+    enableAiKeyComment = uiConfig.optBoolean("enable-ai-key-comment", false);
+    aiCommentThreshold = uiConfig.optDouble("ai-comment-threshold", 0.05);
+    aiCommentsLanguage = uiConfig.optString("ai-comments-language", "en");
+    aiCommentsMax = uiConfig.optInt("ai-comments-max", 10);
+    debug = uiConfig.optBoolean("debug", false);
+    // API key stored in persisted config for security
+    openAiApiKey = persisted.optString("openai-api-key", "");
 
     System.out.println(Locale.getDefault().getLanguage()); // todo add config option for language...
     setLanguage(Locale.getDefault().getLanguage());
@@ -556,6 +573,12 @@ public class Config {
     ui.put("show-katago-estimate-onmainboard", true);
     ui.put("katago-estimate-mode", "small");
     ui.put("katago-estimate-blend", true);
+    // AI Commentary Configuration defaults
+    ui.put("enable-ai-key-comment", false);
+    ui.put("ai-comment-threshold", 0.05);
+    ui.put("ai-comments-language", "en");
+    ui.put("ai-comments-max", 10);
+    ui.put("debug", false);
     config.put("ui", ui);
     return config;
   }
@@ -613,6 +636,22 @@ public class Config {
 
   public void save() throws IOException {
     writeConfig(this.config, new File(configFilename));
+  }
+
+  public void saveAiConfig() throws IOException {
+    // Update UI config with current AI settings
+    uiConfig.put("enable-ai-key-comment", enableAiKeyComment);
+    uiConfig.put("ai-comment-threshold", aiCommentThreshold);
+    uiConfig.put("ai-comments-language", aiCommentsLanguage);
+    uiConfig.put("ai-comments-max", aiCommentsMax);
+    uiConfig.put("debug", debug);
+
+    // Save API key to persisted config
+    persisted.put("openai-api-key", openAiApiKey);
+
+    // Save both config files
+    save();
+    persist();
   }
 
   public void setLanguage(String code) {
