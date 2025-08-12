@@ -3,6 +3,7 @@ package featurecat.lizzie.rules;
 import static java.util.Arrays.asList;
 
 import featurecat.lizzie.Lizzie;
+import featurecat.lizzie.ai.AiCommentService;
 import featurecat.lizzie.analysis.GameInfo;
 import featurecat.lizzie.analysis.Leelaz;
 import featurecat.lizzie.util.EncodingDetector;
@@ -16,7 +17,10 @@ import java.io.OutputStreamWriter;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Matcher;
@@ -602,6 +606,11 @@ public class SGFParser {
       Lizzie.board.updateWinrate();
     }
 
+    // Generate AI comments for key moves if enabled
+    if (Lizzie.config.enableAiKeyComment) {
+      generateAiComments(board);
+    }
+
     // move to the first move
     history.toStart();
 
@@ -1028,5 +1037,118 @@ public class SGFParser {
     char y = alphabet.charAt(c[1]);
 
     return String.format("%c%c", x, y);
+  }
+
+  /** Generate AI comments for key moves based on winrate changes */
+  private static void generateAiComments(Board board) {
+    if (Lizzie.config.openAiApiKey == null || Lizzie.config.openAiApiKey.trim().isEmpty()) {
+      if (Lizzie.config.debug) {
+        System.err.println(
+            "AI Comments: No OpenAI API key configured, skipping AI comment generation");
+      }
+      return;
+    }
+
+    BoardHistoryList history = board.getHistory().shallowCopy();
+    List<MoveCandidate> keyMoves = new ArrayList<>();
+
+    // First pass: collect moves with significant winrate changes
+    history.toStart();
+    double previousWinrate = 0.5; // Start with 50% winrate
+    int moveNumber = 0;
+
+    while (history.next().isPresent()) {
+      moveNumber++;
+      BoardHistoryNode node = history.getCurrentHistoryNode();
+      BoardData data = node.getData();
+
+      if (data.getWinrate() >= 0) { // Valid winrate data
+        double currentWinrate = data.getWinrate();
+        double winrateDelta = Math.abs(currentWinrate - previousWinrate);
+
+        if (winrateDelta >= Lizzie.config.aiCommentThreshold) {
+          String moveStr = data.lastMove.isPresent() ? asCoord(data.lastMove.get()) : "pass";
+
+          keyMoves.add(
+              new MoveCandidate(
+                  node, moveNumber, moveStr, previousWinrate, currentWinrate, winrateDelta));
+        }
+
+        previousWinrate = currentWinrate;
+      }
+    }
+
+    if (keyMoves.isEmpty()) {
+      if (Lizzie.config.debug) {
+        System.err.println(
+            "AI Comments: No moves exceed winrate threshold of "
+                + Lizzie.config.aiCommentThreshold);
+      }
+      return;
+    }
+
+    // Sort by winrate delta (descending) and limit to max comments
+    keyMoves.sort(Comparator.comparingDouble((MoveCandidate m) -> m.winrateDelta).reversed());
+    keyMoves = keyMoves.subList(0, Math.min(keyMoves.size(), Lizzie.config.aiCommentsMax));
+
+    if (Lizzie.config.debug) {
+      System.err.println("AI Comments: Generating comments for " + keyMoves.size() + " key moves");
+    }
+
+    // Generate AI comments for selected moves
+    for (MoveCandidate move : keyMoves) {
+      try {
+        AiCommentService.MoveContext context =
+            new AiCommentService.MoveContext(
+                move.moveNumber, move.moveStr, move.winrateBefore, move.winrateAfter, "");
+
+        String aiComment = AiCommentService.generateComment(context);
+        if (aiComment != null && !aiComment.trim().isEmpty()) {
+          // Append AI comment to existing comment
+          BoardData data = move.node.getData();
+          if (data.comment == null || data.comment.isEmpty()) {
+            data.comment = aiComment;
+          } else {
+            data.comment = data.comment + "\n" + aiComment;
+          }
+
+          if (Lizzie.config.debug) {
+            System.err.println(
+                "AI Comments: Generated comment for move " + move.moveNumber + ": " + aiComment);
+          }
+        }
+      } catch (Exception e) {
+        System.err.println(
+            "Failed to generate AI comment for move " + move.moveNumber + ": " + e.getMessage());
+        if (Lizzie.config.debug) {
+          e.printStackTrace();
+        }
+      }
+    }
+  }
+
+  /** Helper class to store move candidates for AI commentary */
+  private static class MoveCandidate {
+    final BoardHistoryNode node;
+    final int moveNumber;
+    final String moveStr;
+    final double winrateBefore;
+    final double winrateAfter;
+    final double winrateDelta;
+
+    MoveCandidate(
+        BoardHistoryNode node,
+        int moveNumber,
+        String moveStr,
+        double winrateBefore,
+        double winrateAfter,
+        double winrateDelta) {
+      this.node = node;
+      this.moveNumber = moveNumber;
+      this.moveStr = moveStr;
+      this.winrateBefore = winrateBefore;
+      this.winrateAfter = winrateAfter;
+      this.winrateDelta = winrateDelta;
+    }
   }
 }

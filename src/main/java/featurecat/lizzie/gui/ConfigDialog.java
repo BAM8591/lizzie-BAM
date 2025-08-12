@@ -70,6 +70,7 @@ import javax.swing.JFormattedTextField;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JPanel;
+import javax.swing.JPasswordField;
 import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.JSlider;
@@ -116,6 +117,7 @@ public class ConfigDialog extends JDialog {
   public JPanel uiTab;
   public JPanel themeTab;
   public JPanel aboutTab;
+  public JPanel aiTab;
   public JButton okButton;
 
   // Engine Tab
@@ -219,6 +221,13 @@ public class ConfigDialog extends JDialog {
   public JButton btnWhiteStonePath;
   public JPanel pnlBoardPreview;
   JTabbedPane tabbedPane;
+
+  // AI Tab components
+  private JCheckBox chkEnableAiKeyComment;
+  private JFormattedTextField txtAiCommentThreshold;
+  private JComboBox<String> cmbAiCommentsLanguage;
+  private JPasswordField txtOpenAiApiKey;
+  private JFormattedTextField txtAiCommentsMax;
 
   public ConfigDialog() {
     setTitle(resourceBundle.getString("LizzieConfig.title.config"));
@@ -661,6 +670,11 @@ public class ConfigDialog extends JDialog {
     uiTab = new JPanel();
     tabbedPane.addTab(resourceBundle.getString("LizzieConfig.title.ui"), null, uiTab, null);
     uiTab.setLayout(null);
+
+    // AI Tab
+    aiTab = new JPanel();
+    tabbedPane.addTab("AI", null, aiTab, null);
+    aiTab.setLayout(null);
 
     // Theme Tab
     themeTab = new JPanel();
@@ -1240,6 +1254,9 @@ public class ConfigDialog extends JDialog {
         });
 
     new ComsWorker(this).execute();
+
+    // AI Tab setup
+    setupAiTab();
     setLocationRelativeTo(getOwner());
   }
 
@@ -2563,7 +2580,110 @@ public class ConfigDialog extends JDialog {
       Lizzie.config.uiConfig.put("theme", cmbThemes.getSelectedItem());
       writeThemeValues();
 
+      // Save AI configuration
+      saveAiConfig();
+
       Lizzie.config.save();
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+  }
+
+  private void setupAiTab() {
+    NumberFormat nf = NumberFormat.getInstance();
+    nf.setGroupingUsed(false);
+
+    // Enable AI Key Comment checkbox
+    JLabel lblEnableAiKeyComment =
+        new JLabel(resourceBundle.getString("ConfigDialog.enableAiKeyComment"));
+    lblEnableAiKeyComment.setBounds(6, 6, 200, 16);
+    aiTab.add(lblEnableAiKeyComment);
+
+    chkEnableAiKeyComment = new JCheckBox("");
+    chkEnableAiKeyComment.setBounds(210, 2, 25, 23);
+    chkEnableAiKeyComment.setSelected(Lizzie.config.enableAiKeyComment);
+    aiTab.add(chkEnableAiKeyComment);
+
+    // AI Comment Threshold
+    JLabel lblAiCommentThreshold =
+        new JLabel(resourceBundle.getString("ConfigDialog.aiCommentThreshold"));
+    lblAiCommentThreshold.setBounds(6, 36, 200, 16);
+    aiTab.add(lblAiCommentThreshold);
+
+    txtAiCommentThreshold =
+        new JFormattedTextField(
+            new InternationalFormatter(NumberFormat.getNumberInstance()) {
+              {
+                setMinimum(0.0);
+                setMaximum(1.0);
+              }
+            });
+    txtAiCommentThreshold.setBounds(210, 32, 80, 24);
+    txtAiCommentThreshold.setText(String.valueOf(Lizzie.config.aiCommentThreshold));
+    txtAiCommentThreshold.setColumns(10);
+    aiTab.add(txtAiCommentThreshold);
+
+    // AI Comments Language
+    JLabel lblAiCommentsLanguage =
+        new JLabel(resourceBundle.getString("ConfigDialog.aiCommentsLanguage"));
+    lblAiCommentsLanguage.setBounds(6, 66, 200, 16);
+    aiTab.add(lblAiCommentsLanguage);
+
+    String[] languages = {"en", "ru", "uk", "zh", "ja"};
+    cmbAiCommentsLanguage = new JComboBox<>(languages);
+    cmbAiCommentsLanguage.setBounds(210, 62, 100, 24);
+    cmbAiCommentsLanguage.setSelectedItem(Lizzie.config.aiCommentsLanguage);
+    aiTab.add(cmbAiCommentsLanguage);
+
+    // OpenAI API Key
+    JLabel lblOpenAiApiKey = new JLabel(resourceBundle.getString("ConfigDialog.openAiApiKey"));
+    lblOpenAiApiKey.setBounds(6, 96, 200, 16);
+    aiTab.add(lblOpenAiApiKey);
+
+    txtOpenAiApiKey = new JPasswordField();
+    txtOpenAiApiKey.setBounds(210, 92, 300, 24);
+    txtOpenAiApiKey.setText(Lizzie.config.openAiApiKey);
+    aiTab.add(txtOpenAiApiKey);
+
+    // Maximum AI Comments
+    JLabel lblAiCommentsMax = new JLabel(resourceBundle.getString("ConfigDialog.aiCommentsMax"));
+    lblAiCommentsMax.setBounds(6, 126, 200, 16);
+    aiTab.add(lblAiCommentsMax);
+
+    txtAiCommentsMax =
+        new JFormattedTextField(
+            new InternationalFormatter(nf) {
+              {
+                setMinimum(1);
+                setMaximum(100);
+              }
+            });
+    txtAiCommentsMax.setBounds(210, 122, 80, 24);
+    txtAiCommentsMax.setText(String.valueOf(Lizzie.config.aiCommentsMax));
+    txtAiCommentsMax.setColumns(10);
+    aiTab.add(txtAiCommentsMax);
+
+    // Help text
+    JLabel lblHelp =
+        new JLabel(
+            "<html>Enable AI-generated commentary for key moves based on winrate changes.<br/>"
+                + "Requires OpenAI API key. Comments will be added to SGF exports when winrate delta exceeds threshold.</html>");
+    lblHelp.setBounds(6, 160, 500, 40);
+    lblHelp.setFont(lblHelp.getFont().deriveFont(Font.ITALIC, 11f));
+    aiTab.add(lblHelp);
+  }
+
+  private void saveAiConfig() {
+    try {
+      // Update Config object with UI values
+      Lizzie.config.enableAiKeyComment = chkEnableAiKeyComment.isSelected();
+      Lizzie.config.aiCommentThreshold = Utils.txtFieldDoubleValue(txtAiCommentThreshold);
+      Lizzie.config.aiCommentsLanguage = (String) cmbAiCommentsLanguage.getSelectedItem();
+      Lizzie.config.openAiApiKey = new String(txtOpenAiApiKey.getPassword());
+      Lizzie.config.aiCommentsMax = txtFieldIntValue(txtAiCommentsMax);
+
+      // Save to configuration using the Config's saveAiConfig method
+      Lizzie.config.saveAiConfig();
     } catch (IOException e) {
       e.printStackTrace();
     }
