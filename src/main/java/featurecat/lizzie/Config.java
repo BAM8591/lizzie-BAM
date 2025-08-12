@@ -115,6 +115,13 @@ public class Config {
       "body {background:#000000; color:#d0d0d0; font-family:Consolas, Menlo, Monaco, 'Ubuntu Mono', monospace; margin:4px;} .command {color:#ffffff;font-weight:bold;} .winrate {color:#ffffff;font-weight:bold;} .coord {color:#ffffff;font-weight:bold;}";
   public boolean notRefreshVariation = false;
 
+  // AI key move comment settings
+  public boolean enableAiKeyComment = false;
+  public double aiCommentThreshold = 0.07;
+  public String aiCommentsLanguage = "en";
+  public int aiCommentsMax = 30;
+  public String openAiApiKey = "";
+
   private JSONObject loadAndMergeConfig(
       JSONObject defaultCfg, String fileName, boolean needValidation) throws IOException {
     File file = new File(fileName);
@@ -277,6 +284,20 @@ public class Config {
 
     System.out.println(Locale.getDefault().getLanguage()); // todo add config option for language...
     setLanguage(Locale.getDefault().getLanguage());
+
+    // Load AI comment configuration
+    loadAiCommentConfig();
+  }
+
+  private void loadAiCommentConfig() {
+    // Load from regular config (non-sensitive data)
+    enableAiKeyComment = uiConfig.optBoolean("enable-ai-key-comment", false);
+    aiCommentThreshold = uiConfig.optDouble("ai-comment-threshold", 0.07);
+    aiCommentsLanguage = uiConfig.optString("ai-comments-language", "en");
+    aiCommentsMax = uiConfig.optInt("ai-comments-max", 30);
+
+    // Load API key from persisted config only (sensitive data)
+    openAiApiKey = persistedUi.optString("openai-api-key", "");
   }
 
   // Modifies config by adding in values from default_config that are missing.
@@ -608,10 +629,19 @@ public class Config {
     // Save the window position
     persistedUi = WindowPosition.save(persistedUi);
 
+    // Save sensitive AI config (API key) to persisted config only
+    persistedUi.put("openai-api-key", openAiApiKey);
+
     writeConfig(this.persisted, new File(persistFilename));
   }
 
   public void save() throws IOException {
+    // Save non-sensitive AI config to regular config
+    uiConfig.put("enable-ai-key-comment", enableAiKeyComment);
+    uiConfig.put("ai-comment-threshold", aiCommentThreshold);
+    uiConfig.put("ai-comments-language", aiCommentsLanguage);
+    uiConfig.put("ai-comments-max", aiCommentsMax);
+
     writeConfig(this.config, new File(configFilename));
   }
 
