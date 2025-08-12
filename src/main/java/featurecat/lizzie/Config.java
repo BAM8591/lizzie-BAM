@@ -107,6 +107,14 @@ public class Config {
   public boolean appendWinrateToComment = true;
   public boolean holdBestMovesToSgf = true;
   public boolean showBestMovesByHold = true;
+
+  // ---- AI Key Comment (OpenAI) feature ----
+  public boolean enableAiKeyComment = false;
+  public double aiCommentThreshold = 0.07; // 7 percentage points
+  public String aiCommentsLanguage = "en";
+  public int aiCommentsMax = 30;
+  public String openAiApiKey = ""; // persisted only; blank disables
+  public boolean debug = false;
   public int boardPositionProportion = 4;
   public int limitBestMoveNum = 0;
   public int limitBranchLength = 0;
@@ -182,6 +190,24 @@ public class Config {
     return madeCorrections;
   }
 
+  private void loadAiCommentConfig(
+      JSONObject cfg, JSONObject uiCfg, JSONObject persistedCfg, JSONObject persistedUiCfg) {
+    enableAiKeyComment =
+        cfg.optBoolean(
+            "enable-ai-key-comment", uiCfg.optBoolean("enable-ai-key-comment", enableAiKeyComment));
+    aiCommentThreshold =
+        cfg.optDouble(
+            "ai-comment-threshold", uiCfg.optDouble("ai-comment-threshold", aiCommentThreshold));
+    aiCommentsLanguage =
+        cfg.optString(
+            "ai-comments-language", uiCfg.optString("ai-comments-language", aiCommentsLanguage));
+    aiCommentsMax = cfg.optInt("ai-comments-max", uiCfg.optInt("ai-comments-max", aiCommentsMax));
+    openAiApiKey =
+        persistedCfg.optString(
+            "openai-api-key", persistedUiCfg.optString("openai-api-key", openAiApiKey));
+    debug = cfg.optBoolean("debug", debug);
+  }
+
   public Config() throws IOException {
     JSONObject defaultConfig = createDefaultConfig();
     JSONObject persistConfig = createPersistConfig();
@@ -230,6 +256,9 @@ public class Config {
     limitBestMoveNum = uiConfig.optInt("limit-best-move-num", 0);
     limitBranchLength = uiConfig.optInt("limit-branch-length", 0);
     minPlayoutRatioForStats = uiConfig.optDouble("min-playout-ratio-for-stats", 0.1);
+
+    // Load AI comment related settings
+    loadAiCommentConfig(config, uiConfig, persisted, persistedUi);
 
     winrateStrokeWidth = theme.winrateStrokeWidth();
     minimumBlunderBarWidth = theme.minimumBlunderBarWidth();
